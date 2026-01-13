@@ -156,8 +156,8 @@ combinedData <- combinedData %>%
   ),
   
   labels = dplyr::case_when(
-    medicaidOversight == "Yes" ~ "✓",
-    medicaidOversight == "No" ~ "🚫",
+    medicaidOversight == "Yes" ~ "✅",
+    medicaidOversight == "No" ~ "❌",
     TRUE ~ NA_color
   ),
   agency = `Account Name`,
@@ -166,8 +166,8 @@ combinedData <- combinedData %>%
   # linkCode = HTML(paste0('<a href="', citation, '">', agency, ' Org Chart </a>')),
   SHO = str_replace(SHO, "^([^,]+),\\s*(.+)$", "\\2 \\1"),
   description = dplyr::case_when(
-    medicaidOversight == "Yes" ~ paste('The', agency, 'has oversight over Medicaid.'),
-    medicaidOversight == "No" ~ paste('The', agency, 'does not have oversight over Medicaid.'),
+    medicaidOversight == "Yes" ~ paste(' <b>has oversight</b> over Medicaid.'),
+    medicaidOversight == "No" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
     TRUE ~ paste('Medicaid oversight data is not available for', agency)
   ))
 
@@ -548,7 +548,7 @@ line-height: unset !important;
 tags$script(HTML(sprintf('
   document.addEventListener("DOMContentLoaded", function() {
     const defaultMessage = `<div style="padding: 15px; font-size: 1em; text-align: left !important; color: %s;">
-                             Hover over a state or territory to read more information about it.</div>`;
+                             Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart.</div>`;
     const tooltip = document.getElementById("custom-tooltip");
     let lastActivePoint = null;
 
@@ -587,16 +587,13 @@ tags$script(HTML(sprintf('
           <span style="font-size: 1.2em; text-align: center !important; color: ${"%s"}">
             ${point.jurisdictionName}
           </span><br>
-          <b style="color: ${"%s"}; text-align: center !important;">${point.agency}</b><br>
-          <i style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br></i>
+          The <b style="color: ${"%s"}; text-align: center !important;"> ${point.agency}</b>
+          <style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br>
           <div style="padding: 10px 0; font-size: .9em; text-align: left;">
             <strong>S/THO:</strong> ${point.SHO}<br>
-            <strong>Governance:</strong> ${point.governance}<br>
+            <strong>Medicaid Oversight:</strong> ${point.labels} ${point.value}<br>
             <strong>Structure:</strong> ${point.structure}<br>
-            <strong>Medicaid Oversight:</strong> ${point.value}<br>
-            <strong>HHS Region:</strong> ${point.HHSRegion}<br>
-            <strong>Population Size:</strong> ${point.size}<br>
-            <strong>Density:</strong> ${point.density}
+            <strong>Governance:</strong> ${point.governance}<br>
           </div>
         </div>`;
     }
