@@ -1,13 +1,14 @@
 ---
-pagetitle: S/THA Medicaid Oversight Map | 2026
+pagetitle: S/THA Medicaid Oversight Map
 format:
   html:
     page-layout: full
-    favicon: 
 output:
- html_document:
-   self_contained: yes
-   mode: selfcontained
+  html_document:
+    self_contained: yes
+    includes:
+      in_header: |
+        <link rel="icon" type="image/x-icon" href="/images/favicon.png">
 ---
 
 ```{r, echo = FALSE, message = FALSE}
