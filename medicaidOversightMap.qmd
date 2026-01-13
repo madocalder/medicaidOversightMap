@@ -1,0 +1,605 @@
+---
+format:
+  html:
+    page-layout: full
+output:
+ html_document:
+   self_contained: yes
+   mode: selfcontained
+---
+
+```{r, echo = FALSE, message = FALSE}
+# Load Packages
+options(readr.show_col_types = FALSE)
+
+
+library(highcharter)
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(custom.map)
+library(htmltools)
+
+
+
+main_blue <- "#005182"
+light_blue <- "#70C4E8"
+main_orange <- "#DD5D29"
+dark_orange <- "#90361F"
+main_yellow <- "#EBB41F"
+light_yellow <- "#FFD780"
+NA_color <- "#E6E1E7"
+dark_accent <- "#242c3d"
+light_accent <- "#cae6f2"
+icon_accent <- "#47BA83"
+main_colors <- c(light_blue, main_orange, main_yellow, icon_accent, main_blue)
+
+# Define Theme
+asthoTheme <- hc_theme(
+  colors = main_colors,
+  chart = list(
+    backgroundColor = NULL),
+  style = list(
+    fontFamily = "Jost"),
+  title = list(
+    style = list(
+      color = dark_accent,
+      fontFamily = "Jost",
+      fontWeight = "bold",
+      fontSize = "1.7em")),
+  subtitle = list(
+    style = list(
+      color = dark_accent,
+      fontFamily = "Jost",
+      fontSize = "1.5em")),
+  caption = list(
+    style = list(
+      color = "#666",
+      fontFamily = "Jost",
+      fontSize = ".79em")),
+  xAxis = list(
+    labels = list(
+      style = list(
+        fontFamily = "Jost",
+        fontSize = ".9em",
+        fontWeight = "normal",
+        color = "#666")),
+    title = list(
+      style = list(
+        color = dark_accent,
+        fontFamily = "Jost",
+        fontWeight = "500",
+        fontSize = ".9em"))),
+  yAxis = list(
+    labels = list(
+      style = list(
+        fontFamily = "Jost",
+        fontSize = ".9em",
+        fontWeight = "normal",
+        color = "#666")),
+    title = list(
+      style = list(
+        color = dark_accent,
+        fontFamily = "Jost",
+        fontWeight = "500",
+        fontSize = ".9em"))),
+  legend = list(
+    itemStyle = list(
+      fontFamily = "Jost",
+      color = dark_accent,
+      fontSize = "1.2em",
+      fontWeight = "normal",
+      color = "#666"),
+    title = list(
+      style = list(
+        textDecoration = "underline",
+        fontFamily = "Jost",
+        fontSize = "1.25em"))),
+  tooltip = list(
+    padding = 10,
+    borderRadius = 20,
+    backgroundColor = "#fff",
+
+    style = list(
+      fontFamily = "Jost",
+      fontSize = ".8em")),
+  itemHoverStyle = list(
+    color = light_accent)
+)
+
+medicaid <- read_excel("memberData.xlsx")
+gov <- read_csv("GovStruct.csv")
+
+gov <- gov %>%
+  dplyr::mutate(
+    medicaidOversight = dplyr::case_when(
+      structure == "Freestanding/independent" ~ "No",
+      structure == "Under an umbrella" ~ "Yes",
+      TRUE ~ "Data Not Available"
+    )
+  )
+
+export <- list(
+  list(
+    text = "PNG",
+    onclick = JS("function () {
+                   this.exportChart({ type: 'image/png' }); }")),
+  list(
+    text = "JPEG",
+    onclick = JS("function () {
+                   this.exportChart({ type: 'image/jpeg' }); }")),
+  list(
+    text = "PDF",
+    onclick = JS("function () {
+                   this.exportChart({ type: 'application/pdf' }); }"))
+) #end of the exporting code
+
+```
+
+```{r, echo = FALSE}
+
+gov <- gov %>%
+select(FIPSCode, JurisdictionName, medicaidOversight, governance, size, density, structure, region, HHSRegion, medicaidOversight)%>%
+dplyr::rename(jurisdictionName = JurisdictionName)
+
+combinedData <- left_join(gov, medicaid, by = "jurisdictionName")
+
+combinedData <- combinedData %>%
+  rename(fips = FIPSCode) %>%
+  drop_na(medicaidOversight)%>%
+  dplyr::mutate(colors = dplyr::case_when(
+    medicaidOversight == "Yes" ~ icon_accent,
+    medicaidOversight == "No" ~ main_orange,
+    TRUE ~ NA_color
+  ),
+  
+  labels = dplyr::case_when(
+    medicaidOversight == "Yes" ~ "✓",
+    medicaidOversight == "No" ~ "🚫",
+    TRUE ~ NA_color
+  ),
+  agency = `Account Name`,
+  SHO = `S/THO`,
+  orgChartLink = `Org Chart`,
+  # linkCode = HTML(paste0('<a href="', citation, '">', agency, ' Org Chart </a>')),
+  SHO = str_replace(SHO, "^([^,]+),\\s*(.+)$", "\\2 \\1"),
+  description = dplyr::case_when(
+    medicaidOversight == "Yes" ~ paste('The', agency, 'has oversight over Medicaid.'),
+    medicaidOversight == "No" ~ paste('The', agency, 'does not have oversight over Medicaid.'),
+    TRUE ~ paste('Medicaid oversight data is not available for', agency)
+  ))
+
+data_classes <- combinedData %>%
+  mutate(value = medicaidOversight) %>%
+  group_by(medicaidOversight) %>%
+  summarise(value = unique(value), .groups = "drop") %>%
+  arrange(value) %>%
+  rename(name = medicaidOversight, from = value) %>%
+  mutate(to = from) %>%
+  list_parse() # end of data classes
+
+```
+
+```{r, echo = FALSE}
+
+# Original color axis configuration with patterns
+color_axis_pattern <- list(
+  dataClassColor = "category",
+  dataClasses = list(
+    list(
+      from = "Yes",
+      to = "Yes",
+      name = "Yes",
+      color = list(
+        pattern = list(
+          id = "crossHatch",
+          width = 7,
+          height = 7,
+          path = list(d = 'M 0 4 L 8 4 M 4 0 L 4 8', strokeWidth = 4),
+          backgroundColor = 'white',
+          color = icon_accent
+        )
+      )
+    ),
+    list(
+      from = "No",
+      to = "No",
+      name = "No",
+      color = list(
+        pattern = list(
+          id = "verticalStripes",
+          width = 10,
+          height = 5,
+          path = list(d = "M 3 0 L 3 10", strokeWidth = 2),
+          color = 'white',
+          backgroundColor = main_orange
+        )
+      )
+    ),
+    list(
+      from = "Data Not Available",
+      to = "Data Not Available",
+      name = "Data Not Available",
+      color = NA_color
+    )
+  )
+)
+
+# Solid color configuration
+color_axis_solid <- list(
+  dataClassColor = "category",
+  dataClasses = list(
+    list(
+      from = "Yes",
+      to = "Yes",
+      name = "Yes",
+      color = icon_accent
+    ),
+    list(
+      from = "No",
+      to = "No",
+      name = "No",
+      color = main_orange
+    ),
+    list(
+      from = "Data Not Available",
+      to = "Data Not Available",
+      name = "Data Not Available",
+      color = NA_color
+    )
+  )
+)
+
+```
+
+```{r, echo = FALSE, style="font-family: Jost"}
+
+medicaidOversightMap <- highchart(type = "map") %>%
+  # Load dependencies
+  hc_add_dependency("modules/pattern-fill.js") |> 
+  hc_add_dependency("accessibility.js") |>
+  hc_size(height = 600) |>
+  hc_plotOptions(map = list(states = list(hover = list(enabled = TRUE)))) |>
+  # Fixed accessibility configuration
+  hc_chart(
+    accessibility = list(
+      enabled = TRUE,
+      keyboardNavigation = list(enabled = TRUE),
+      point = list(
+        valueDescriptionFormat = "{point.description}",
+        descriptionFormatter = JS("function() {
+          return this.jurisdictionName + ': ' + this.medicaidOversight;
+        }")
+      )
+    )
+  ) %>%
+  hc_add_custom_map_cat(
+    data = combinedData,
+    value = "medicaidOversight",
+    joinBy = "fips",
+    mapType = "c",
+    name = "Medicaid Oversight",
+    borderColor = "#020202",
+    borderWidth = .5,
+    keys = c("jurisdictionName", "value", "description", "governance",
+           "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
+    dataLabels = list(enabled = FALSE, format = "{point.labels}")
+  ) %>%
+  # colors using the category data classes
+  hc_colorAxis(color_axis_solid) %>%
+  # map title
+  hc_title(
+    text = paste("Agency Medicaid Oversight"),
+    margin = 10,
+    widthAdjust = -60,
+    style = list(
+      lineHeight = "24px"
+    )
+  ) %>%
+   hc_caption(
+     text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of January 1, 2026. <b><br>Note:</b> Refer to references for data sources.<br> <br>"),
+    useHTML = TRUE,
+    verticalAlign = "bottom",
+     widthAdjust = 0
+   ) %>%
+  hc_legend(
+    enabled = TRUE,
+    layout = "horizontal",
+    align = "left",
+    itemDistance = 8,
+    width = "120%",
+    title = list(text = "Does agency have Medicaid oversight?")
+  ) %>%
+  hc_add_theme(asthoTheme) %>%
+highcharter::hc_exporting(
+      enabled = TRUE,
+      accessibility = list(
+        enabled = TRUE),
+      formAttributes = list(
+        target = "_blank" # opens in new window
+      ),
+      sourceHeight = 700, # sets height of download
+      sourceWidth = 1200, # sets width of download
+      allowHTML = TRUE,
+      buttons = list(
+        contextButton = list(
+          symbol = "menu",
+          symbolStrokeWidth = 2,
+          symbolFill = icon_accent,
+          symbolStroke = icon_accent,
+          menuItems = c(
+            "downloadPNG",
+            # "separator",
+            # "downloadPDF",
+            "downloadSVG",
+            # "separator",
+            "downloadCSV",
+            "downloadXLS",
+            "openInCloud")
+        )
+      ),
+      
+      chartOptions = list(
+        chart = list(
+        backgroundColor = "#FFFFFF"
+        )
+      )
+    )
+  
+```
+
+```{r, echo = FALSE, style="font-family: Jost"}
+
+library(htmltools)
+library(shiny)
+
+# Create Map Container
+medicaidOversightMap <- medicaidOversightMap %>% 
+  hc_tooltip(enabled = FALSE) %>% # Disable default tooltip
+  hc_add_dependency(name = "modules/accessibility.js") %>%
+  hc_plotOptions(
+    series = list(
+    events = list(
+      click = JS("function(self) { 
+    if (self.point.orgChartLink != null) {
+        window.open(self.point.orgChartLink, '_blank');
+    }
+}")
+      )
+    )
+  ) 
+
+# 3. Combine Elements with JavaScript
+browsable(
+  tagList(
+    
+        tags$style(HTML(
+      sprintf("
+        /* Rounded toggle switch */
+        .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 24px;
+       }
+  
+ /*  .switch-label {
+    font-family: 'Jost', sans-serif;
+    font-size: .8em;
+    white-space: nowrap;
+  } */
+        
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          transition: .4s;
+          border-radius: 34px;
+        }
+        
+        .slider:before {
+          position: absolute;
+          content: '';
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: .4s;
+          border-radius: 50%%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        input:checked + .slider {
+          background-color: %s;
+        }
+        
+        input:checked + .slider:before {
+          transform: translateX(16px);
+        }
+        
+        /* Optional label */
+       /*   .switch-label {
+          position: absolute;
+          top: 3px;
+          left: 45px;
+          z-index: 1000;
+          color: %s;
+          font-family: 'Jost', sans-serif;
+          font-size: 0.8em;
+        } */
+      ", icon_accent, main_orange)
+    )),
+    
+    tags$style(HTML('
+     .responsive-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.map-wrapper {
+  flex: 1;
+  min-width: 0; /* Fixes flexbox overflow issue */
+}
+
+#custom-tooltip {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  position: sticky;
+  top: 20px;
+  transition: all 0.3s;
+  background: white;
+  border: 2px solid #70C4E8;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 10px;
+}
+
+.body {
+line-height: unset !important;
+}
+
+@media (min-width: 650px) {
+  .responsive-container {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .map-wrapper {
+    flex: 1 1 52%;
+  }
+  
+  #custom-tooltip {
+    flex: 1 1 48%;
+    max-height: 650px;
+  }
+}
+    ')),
+
+    tags$div(
+  class = "switch-container",
+  style = "position: absolute; top: 10px; left: 10px; z-index: 1000;
+          display: flex; flex-direction: column; gap: 2px; align-items: flex-start;",
+  # Label element
+  tags$span(
+    class = "switch-label",
+    "Pattern Fill?",
+    style = sprintf("color: %s; font-family: 'Jost'; font-size: 0.8em; margin-left: 3px;", main_blue)
+  ),
+  # Switch element
+  tags$label(
+    class = "switch",
+    tags$input(
+      type = "checkbox",
+      id = "pattern-toggle",
+      style = "visibility: hidden;"
+    ),
+    tags$span(class = "slider round")
+  )
+),
+    div(class = "responsive-container",
+        style = "padding-top: 17px;",
+        
+
+        # Map container
+        div(class = "map-wrapper",
+            style = "position: relative; width: 100%;",
+                medicaidOversightMap
+            ),
+        
+        # Tooltip container
+        div(
+          id = "custom-tooltip",
+          style = paste(
+            "width: 700px; max-width: 100%; transition: all 0.3s;",
+            "background: white; border: 2px solid ", light_blue, "; ",
+            "border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); ",
+            "padding: 10px; overflow-y: auto;"
+          ),
+          HTML(paste(
+            "<div style='font-size: 1em;text-align: left !important; color: ", main_blue, ";'>",
+            "Hover over a state or territory to read more information about it.</div>"
+          ))
+        )
+    ),
+    tags$script(HTML(sprintf('
+  document.getElementById("pattern-toggle").addEventListener("change", function() {
+    Highcharts.charts.forEach(chart => {
+      chart.colorAxis[0].update({
+        dataClasses: this.checked ? %s : %s
+      });
+    });
+  });
+  ', 
+  jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
+  jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
+))),
+    
+    # Keep the existing JavaScript
+tags$script(HTML(sprintf('
+  document.addEventListener("DOMContentLoaded", function() {
+    const defaultMessage = `<div style="padding: 15px; font-size: 1em; text-align: left !important; color: %s;">
+                             Hover over a state or territory to read more information about it.</div>`;
+    const tooltip = document.getElementById("custom-tooltip");
+    let lastActivePoint = null;
+
+    Highcharts.charts.forEach(function(chart) {
+      // Store last active point
+      const container = chart.container;
+      
+      container.onmousemove = function(e) {
+        const point = chart.hoverPoint;
+        
+        if(point) {
+          // Update tooltip with current point and store as last active
+          lastActivePoint = point;
+          updateTooltip(point);
+        } else if(lastActivePoint) {
+          // Only update if mouse leaves the entire chart
+          const bounds = container.getBoundingClientRect();
+          if(e.clientX < bounds.left || e.clientX > bounds.right || 
+             e.clientY < bounds.top || e.clientY > bounds.bottom) {
+            lastActivePoint = null;
+            tooltip.innerHTML = defaultMessage;
+          }
+        }
+      };
+
+      // Clear last point when mouse leaves chart
+      container.addEventListener("mouseleave", function() {
+        lastActivePoint = null;
+        tooltip.innerHTML = defaultMessage;
+      });
+    });
+
+    function updateTooltip(point) {
+      tooltip.innerHTML = `
+        <div style="padding: 8px;">
+          <span style="font-size: 1.2em; text-align: center !important; color: ${"%s"}">
+            ${point.jurisdictionName}
+          </span><br>
+          <b style="color: ${"%s"}; text-align: center !important;">${point.agency}</b><br>
+          <i style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br></i>
+          <div style="padding: 10px 0; font-size: .9em; text-align: left;">
+            <strong>S/THO:</strong> ${point.SHO}<br>
+            <strong>Governance:</strong> ${point.governance}<br>
+            <strong>Structure:</strong> ${point.structure}<br>
+            <strong>Medicaid Oversight:</strong> ${point.value}<br>
+            <strong>HHS Region:</strong> ${point.HHSRegion}<br>
+            <strong>Population Size:</strong> ${point.size}<br>
+            <strong>Density:</strong> ${point.density}
+          </div>
+        </div>`;
+    }
+  });
+', main_blue, main_blue, main_orange)))  )
+)
+
+```
