@@ -58,7 +58,7 @@ asthoTheme <- hc_theme(
     style = list(
       color = "#666",
       fontFamily = "Jost",
-      fontSize = ".79em")),
+      fontSize = ".9em")),
   xAxis = list(
     labels = list(
       style = list(
@@ -86,17 +86,20 @@ asthoTheme <- hc_theme(
         fontWeight = "500",
         fontSize = ".9em"))),
   legend = list(
+    # symbolHeight = "1.8em",
+    # symbolWidth = "1.8em",
+    # symbolRadius = .5,
     itemStyle = list(
       fontFamily = "Jost",
       color = dark_accent,
-      fontSize = "1.2em",
+      fontSize = "1.5em",
       fontWeight = "normal",
       color = "#666"),
     title = list(
       style = list(
         textDecoration = "underline",
         fontFamily = "Jost",
-        fontSize = "1.25em"))),
+        fontSize = "1.4em"))),
   tooltip = list(
     padding = 10,
     borderRadius = 20,
@@ -150,7 +153,7 @@ combinedData <- combinedData %>%
   rename(fips = FIPSCode) %>%
   drop_na(medicaidOversight)%>%
   dplyr::mutate(colors = dplyr::case_when(
-    medicaidOversight == "Yes" ~ icon_accent,
+    medicaidOversight == "Yes" ~ light_blue,
     medicaidOversight == "No" ~ main_orange,
     TRUE ~ NA_color
   ),
@@ -161,6 +164,7 @@ combinedData <- combinedData %>%
     TRUE ~ NA_color
   ),
   agency = `Account Name`,
+  population = format(Population, big.mark = ","),
   SHO = `S/THO`,
   orgChartLink = `Org Chart`,
   # linkCode = HTML(paste0('<a href="', citation, '">', agency, ' Org Chart </a>')),
@@ -195,11 +199,11 @@ color_axis_pattern <- list(
       color = list(
         pattern = list(
           id = "crossHatch",
-          width = 7,
-          height = 7,
-          path = list(d = 'M 0 4 L 8 4 M 4 0 L 4 8', strokeWidth = 4),
-          backgroundColor = 'white',
-          color = icon_accent
+          width = 12,
+          height = 12,
+          path = list(d = 'M 0 8 L 16 8 M 8 0 L 8 16', strokeWidth = 3.5),
+          backgroundColor = light_blue,
+          color = main_blue
         )
       )
     ),
@@ -210,10 +214,10 @@ color_axis_pattern <- list(
       color = list(
         pattern = list(
           id = "verticalStripes",
-          width = 10,
-          height = 5,
-          path = list(d = "M 3 0 L 3 10", strokeWidth = 2),
-          color = 'white',
+          width = 15,
+          height = 7.5,
+          path = list(d = "M 6 0 L 6 20", strokeWidth = 3),
+          color = light_yellow,
           backgroundColor = main_orange
         )
       )
@@ -235,7 +239,7 @@ color_axis_solid <- list(
       from = "Yes",
       to = "Yes",
       name = "Yes",
-      color = icon_accent
+      color = light_blue
     ),
     list(
       from = "No",
@@ -283,7 +287,7 @@ medicaidOversightMap <- highchart(type = "map") %>%
     name = "Medicaid Oversight",
     borderColor = "#020202",
     borderWidth = .5,
-    keys = c("jurisdictionName", "value", "description", "governance",
+    keys = c("jurisdictionName", "value", "population", "description", "governance",
            "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
     dataLabels = list(enabled = FALSE, format = "{point.labels}")
   ) %>%
@@ -434,7 +438,7 @@ browsable(
           font-family: 'Jost', sans-serif;
           font-size: 0.8em;
         } */
-      ", icon_accent, main_orange)
+      ", main_blue, main_orange)
     )),
     
     tags$style(HTML('
@@ -548,7 +552,7 @@ line-height: unset !important;
 tags$script(HTML(sprintf('
   document.addEventListener("DOMContentLoaded", function() {
     const defaultMessage = `<div style="padding: 15px; font-size: 1em; text-align: left !important; color: %s;">
-                             Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart.</div>`;
+                             Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart in a new tab.</div>`;
     const tooltip = document.getElementById("custom-tooltip");
     let lastActivePoint = null;
 
@@ -560,10 +564,18 @@ tags$script(HTML(sprintf('
         const point = chart.hoverPoint;
         
         if(point) {
-          // Update tooltip with current point and store as last active
-          lastActivePoint = point;
-          updateTooltip(point);
-        } else if(lastActivePoint) {
+        
+          if (point.jurisdictionName !== "Louisiana") {
+           // Update tooltip with current point and store as last active
+           lastActivePoint = point;
+           updateTooltip(point);
+           
+           } else {
+           // For Louisiana, show default message
+           lastActivePoint = null;
+           tooltip.innerHTML = defaultMessage;
+           }
+} else if(lastActivePoint) {
           // Only update if mouse leaves the entire chart
           const bounds = container.getBoundingClientRect();
           if(e.clientX < bounds.left || e.clientX > bounds.right || 
@@ -590,10 +602,12 @@ tags$script(HTML(sprintf('
           The <b style="color: ${"%s"}; text-align: center !important;"> ${point.agency}</b>
           <style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br>
           <div style="padding: 10px 0; font-size: .9em; text-align: left;">
-            <strong>S/THO:</strong> ${point.SHO}<br>
             <strong>Medicaid Oversight:</strong> ${point.labels} ${point.value}<br>
+            <strong>S/THO:</strong> ${point.SHO}<br>
             <strong>Structure:</strong> ${point.structure}<br>
             <strong>Governance:</strong> ${point.governance}<br>
+            <strong>Population:</strong> ${point.population}<br>
+            <strong>HHS Region:</strong> ${point.HHSRegion}<br>
           </div>
         </div>`;
     }
