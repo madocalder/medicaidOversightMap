@@ -114,7 +114,7 @@ asthoTheme <- hc_theme(
 )
 
 medicaid <- read_excel("memberData.xlsx")
-gov <- read_csv("GovStruct.csv")
+gov <- read_csv("revisedMedicaidMapGovStruct.csv")
 
 gov <- gov %>%
   dplyr::mutate(
