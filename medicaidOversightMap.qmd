@@ -304,7 +304,7 @@ medicaidOversightMap <- highchart(type = "map") %>%
     )
   ) %>%
    hc_caption(
-     text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of January 1, 2026. <b><br>Note:</b> Refer to references for data sources.<br> <br>"),
+     text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of January 2026. <b>"),
     useHTML = TRUE,
     verticalAlign = "bottom",
      widthAdjust = 0
