@@ -116,7 +116,7 @@ asthoTheme <- hc_theme(
 medicaid <- read_excel("memberData.xlsx")
 gov <- read_csv("revisedMedicaidMapGovStruct.csv")
 
-gov <- gov %>%
+gov <- gov |>
   dplyr::mutate(
     medicaidOversight = dplyr::case_when(
       structure == "Freestanding/independent" ~ "No",
@@ -144,15 +144,15 @@ export <- list(
 
 ```{r, echo = FALSE}
 
-gov <- gov %>%
-select(FIPSCode, JurisdictionName, medicaidOversight, governance, size, density, structure, region, HHSRegion, medicaidOversight)%>%
+gov <- gov |>
+select(FIPSCode, JurisdictionName, medicaidOversight, governance, size, density, structure, region, HHSRegion, medicaidOversight)|>
 dplyr::rename(jurisdictionName = JurisdictionName)
 
 combinedData <- left_join(gov, medicaid, by = "jurisdictionName")
 
-combinedData <- combinedData %>%
-  rename(fips = FIPSCode) %>%
-  drop_na(medicaidOversight)%>%
+combinedData <- combinedData |>
+  rename(fips = FIPSCode) |>
+  drop_na(medicaidOversight)|>
   dplyr::mutate(colors = dplyr::case_when(
     medicaidOversight == "Yes" ~ light_blue,
     medicaidOversight == "No" ~ main_orange,
@@ -176,13 +176,13 @@ combinedData <- combinedData %>%
     TRUE ~ paste('Medicaid oversight data is not available for', agency)
   ))
 
-data_classes <- combinedData %>%
-  mutate(value = medicaidOversight) %>%
-  group_by(medicaidOversight) %>%
-  summarise(value = unique(value), .groups = "drop") %>%
-  arrange(value) %>%
-  rename(name = medicaidOversight, from = value) %>%
-  mutate(to = from) %>%
+data_classes <- combinedData |>
+  mutate(value = medicaidOversight) |>
+  group_by(medicaidOversight) |>
+  summarise(value = unique(value), .groups = "drop") |>
+  arrange(value) |>
+  rename(name = medicaidOversight, from = value) |>
+  mutate(to = from) |>
   list_parse() # end of data classes
 
 ```
@@ -261,7 +261,7 @@ color_axis_solid <- list(
 
 ```{r, echo = FALSE, style="font-family: Jost"}
 
-medicaidOversightMap <- highchart(type = "map") %>%
+medicaidOversightMap <- highchart(type = "map") |>
   # Load dependencies
   hc_add_dependency("modules/pattern-fill.js") |> 
   hc_add_dependency("accessibility.js") |>
@@ -279,7 +279,7 @@ medicaidOversightMap <- highchart(type = "map") %>%
         }")
       )
     )
-  ) %>%
+  ) |>
   hc_add_custom_map_cat(
     data = combinedData,
     value = "medicaidOversight",
@@ -291,9 +291,9 @@ medicaidOversightMap <- highchart(type = "map") %>%
     keys = c("jurisdictionName", "value", "population", "description", "governance",
            "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
     dataLabels = list(enabled = FALSE, format = "{point.labels}")
-  ) %>%
+  ) |>
   # colors using the category data classes
-  hc_colorAxis(color_axis_solid) %>%
+  hc_colorAxis(color_axis_solid) |>
   # map title
   hc_title(
     text = paste("Agency Medicaid Oversight"),
@@ -302,13 +302,13 @@ medicaidOversightMap <- highchart(type = "map") %>%
     style = list(
       lineHeight = "24px"
     )
-  ) %>%
+  ) |>
    hc_caption(
      text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of January 2026. <b>"),
     useHTML = TRUE,
     verticalAlign = "bottom",
      widthAdjust = 0
-   ) %>%
+   ) |>
   hc_legend(
     enabled = TRUE,
     layout = "horizontal",
@@ -316,8 +316,8 @@ medicaidOversightMap <- highchart(type = "map") %>%
     itemDistance = 8,
     width = "120%",
     title = list(text = "Does agency have Medicaid oversight?")
-  ) %>%
-  hc_add_theme(asthoTheme) %>%
+  ) |>
+  hc_add_theme(asthoTheme) |>
 highcharter::hc_exporting(
       enabled = TRUE,
       accessibility = list(
@@ -361,9 +361,9 @@ library(htmltools)
 library(shiny)
 
 # Create Map Container
-medicaidOversightMap <- medicaidOversightMap %>% 
-  hc_tooltip(enabled = FALSE) %>% # Disable default tooltip
-  hc_add_dependency(name = "modules/accessibility.js") %>%
+medicaidOversightMap <- medicaidOversightMap |> 
+  hc_tooltip(enabled = FALSE) |> # Disable default tooltip
+  hc_add_dependency(name = "modules/accessibility.js") |>
   hc_plotOptions(
     series = list(
     events = list(
