@@ -296,7 +296,7 @@ medicaidOversightMap <- highchart(type = "map") |>
   hc_colorAxis(color_axis_solid) |>
   # map title
   hc_title(
-    text = paste("Agency Medicaid Oversight"),
+    text = paste("State/Territory Health Agency - Medicaid Oversight"),
     margin = 10,
     widthAdjust = -60,
     style = list(
@@ -315,7 +315,7 @@ medicaidOversightMap <- highchart(type = "map") |>
     align = "left",
     itemDistance = 8,
     width = "120%",
-    title = list(text = "Does agency have Medicaid oversight?")
+    title = list(text = "S/THA Medicaid Oversight")
   ) |>
   hc_add_theme(asthoTheme) |>
 highcharter::hc_exporting(
