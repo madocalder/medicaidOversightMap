@@ -264,97 +264,91 @@ data_classes <- combinedData |>
  source("patterns.R")
 
 
-# Create color axis with pattern fills based on your pattern library
-color_axis_pattern <- list(
-  dataClasses = list(
-    list(
-      from = "SHO Oversight (SHO designee does not have oversight)",
-      to = "SHO Oversight (SHO designee does not have oversight)",
-      color = chainlink_pattern,  # Using pattern instead of solid color
-      name = "SHO Oversight (SHO designee does not have oversight)"
-    ),
-    
-    list(
-      from = "SHO Oversight",
-      to = "SHO Oversight",
-      color = wave_pattern,
-      name = "SHO Oversight"
-    ),
-    
+
+# Define your color mappings with combined labels
+color_mappings <- list(
+  # SHO Oversight group
   list(
-      from = "No SHO Oversight",
-      to = "No SHO Oversight",
-      color = triangles_pattern,
-      name = "No SHO Oversight"
-    ),
-    
-    list(
-      from = "NA | Freestanding",
-      to = "NA | Freestanding",
-      name = "Freestanding",
-      color = parquet_pattern
-    ),
+    group = "SHO Oversight",
+    subgroup = "SHO Oversight",
+    display_name = "SHO Oversight",
+    solid_color = light_blue,
+    pattern_color = wave_pattern,
+    order = 1
+  ),
+  list(
+    group = "SHO Oversight", 
+    subgroup = "SHO Oversight (SHO designee does not have oversight)",
+    display_name = "SHO Oversight <span style='font-size:0.8em; font-weight:light; font-style:italics;'>(SHO designee does not have oversight)</span>",
+    solid_color = main_blue,
+    pattern_color = chainlink_pattern,
+    order = 2
+  ),
   
+  # No SHO Oversight group
+  list(
+    group = "No SHO Oversight",
+    subgroup = "No SHO Oversight",
+    display_name = "No SHO Oversight",
+    solid_color = main_orange,
+    pattern_color = triangles_pattern,
+    order = 3
+  ),
   
-    list(
-      from = "NA | Does not have Medicaid",
-      to = "NA | Does not have Medicaid",
-      name = "Does not have Medicaid",
-      color = na_pattern
-    ),
-    
-    list(
-      from = "Data Not Available",
-      to = "Data Not Available",
-      name = "Data Not Available",
-      color = NA_color
-    )
+  # Not Applicable group
+  list(
+    group = "Not Applicable",
+    subgroup = "NA | Freestanding",
+    display_name = "Not Applicable <span style='font-size:0.8em; font-weight:normal;'>(Freestanding agency)</span>",
+    solid_color = icon_accent,
+    pattern_color = parquet_pattern,
+    order = 4
+  ),
+  list(
+    group = "Not Applicable",
+    subgroup = "NA | Does not have Medicaid",
+    display_name = "Not Applicable <span style='font-size:0.8em; font-weight:normal;'>(Does not have Medicaid)</span>",
+    solid_color = grey,
+    pattern_color = na_pattern,
+    order = 5
+  ),
+  
+  # Data Not Available
+  list(
+    group = "Data Not Available",
+    subgroup = "Data Not Available",
+    display_name = "Data Not Available",
+    solid_color = NA_color,
+    pattern_color = NA_color,
+    order = 6
   )
 )
 
-# Keep your solid color version for comparison/toggle
+# Sort by order
+color_mappings <- color_mappings[order(sapply(color_mappings, function(x) x$order))]
+
+# Build color axis for solid version
 color_axis_solid <- list(
-  dataClasses = list(
+  dataClasses = lapply(color_mappings, function(mapping) {
     list(
-      from = "SHO Oversight (SHO designee does not have oversight)",
-      to = "SHO Oversight (SHO designee does not have oversight)",
-      color = main_blue,  # Using pattern instead of solid color
-      name = "SHO Oversight (SHO designee does not have oversight)"
-    ),
-    list(
-      from = "SHO Oversight",
-      to = "SHO Oversight",
-      color = light_blue,
-      name = "SHO Oversight"
-    ),
-    
-    list(
-      from = "No SHO Oversight",
-      to = "No SHO Oversight",
-      color = main_orange,
-      name = "No SHO Oversight"
-    ),
-    
-    list(
-      from = "NA | Freestanding",
-      to = "NA | Freestanding",
-      name = "Freestanding",
-      color = icon_accent
-    ),
-    list(
-      from = "NA | Does not have Medicaid",
-      to = "NA | Does not have Medicaid",
-      name = "Does not have Medicaid",
-      color = grey
-    ),
-    
-      list(
-      from = "Data Not Available",
-      to = "Data Not Available",
-      name = "Data Not Available",
-      color = NA_color
+      from = mapping$subgroup,
+      to = mapping$subgroup,
+      color = mapping$solid_color,
+      name = mapping$display_name  # Use combined display name
     )
-  )
+  })
+)
+
+# Build color axis for pattern version  
+color_axis_pattern <- list(
+  dataClasses = lapply(color_mappings, function(mapping) {
+    list(
+      from = mapping$subgroup,
+      to = mapping$subgroup,
+      color = mapping$pattern_color,
+      name = mapping$display_name  # Same combined display name
+    )
+  })
 )
 
 medicaidOversightMap <- highchart(type = "map") |>
@@ -362,7 +356,10 @@ medicaidOversightMap <- highchart(type = "map") |>
   hc_add_dependency("modules/pattern-fill.js") |> 
   hc_add_dependency("accessibility.js") |>
   hc_size(height = 800) |>
-  hc_plotOptions(map = list(states = list(hover = list(enabled = TRUE)))) |>
+  hc_plotOptions(map = list(
+    linecap = "round",
+    states = list(hover = list(enabled = TRUE))
+    )) |>
   # Fixed accessibility configuration
   hc_chart(
     accessibility = list(
@@ -383,8 +380,8 @@ medicaidOversightMap <- highchart(type = "map") |>
     joinBy = "fips",
     mapType = "c",
     name = "Medicaid Oversight",
-    borderColor = "#020202",
-    borderWidth = .5,
+    borderColor = "black",
+    borderWidth = .85,
     keys = c("jurisdictionName", "group", "value", "description", "governance2022",
              "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
     dataLabels = list(enabled = FALSE, format = "{point.labels}")
@@ -402,15 +399,21 @@ medicaidOversightMap <- highchart(type = "map") |>
     )
   ) |>
   hc_caption(
-    text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of January 2026. <b>"),
+    text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of April 2026. <b>"),
     useHTML = TRUE,
     verticalAlign = "bottom",
     widthAdjust = 0
   ) |>
   hc_legend(
     enabled = TRUE,
+    # layout = "horizontal",
+    # width = "200%",
     align = "left",
-    title = list(text = "S/THA Medicaid Oversight")
+    title = list(text = "S/THA Medicaid Oversight"),
+    itemStyle = list(
+    whiteSpace = "normal"
+
+  )
   ) |>
   hc_add_theme(asthoTheme) |>
   highcharter::hc_exporting(
@@ -592,7 +595,21 @@ line-height: unset !important;
       style = "visibility: hidden;"
     ),
     tags$span(class = "slider round")
-  )
+  ),
+  tags$script(HTML(sprintf('
+  document.getElementById("pattern-toggle").addEventListener("change", function() {
+    Highcharts.charts.forEach(chart => {
+      if (chart.colorAxis && chart.colorAxis[0]) {
+        chart.colorAxis[0].update({
+          dataClasses: this.checked ? %s : %s
+        });
+      }
+    });
+  });
+', 
+  jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
+  jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
+)))
 ),
     div(class = "responsive-container",
         style = "padding-top: 17px;",
