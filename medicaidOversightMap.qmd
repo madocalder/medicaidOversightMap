@@ -18,6 +18,7 @@ options(readr.show_col_types = FALSE)
 
 library(highcharter)
 library(tidyverse)
+library(tidyr)
 library(dplyr)
 library(readxl)
 library(custom.map)
@@ -117,37 +118,38 @@ asthoTheme <- hc_theme(
 
 
 # load data -------
+
 medicaid <- read_excel("updatedMemberData.xlsx")|>
   rename('medicaid' = "Oversight?") |>
   mutate( 
     
     medicaidOversight = dplyr::case_when(
-    medicaid == "NA - Freestanding" ~ "NA | Freestanding",
+   
+       medicaid == "NA - Freestanding" ~ "Freestanding Agency: No S/THO Oversight",
     
-    tolower(medicaid) == "no sho oversight" ~ "No SHO Oversight",
+    tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: No S/THO Oversight",
     
-    medicaid == "SHO Oversight (SHO designee does not have oversight)" ~ "SHO Oversight (SHO designee does not have oversight)",
-    
-  medicaid == "NA (does not have Medicaid)" ~ "NA | Does not have Medicaid",
+  medicaid == "NA (does not have Medicaid)" ~ "NA",
   
   medicaid == "Data Not Available" ~ "Data Not Available",
   
-  TRUE ~ "SHO Oversight"
-    
-  ),
-  
-  medicaidGroup = dplyr::case_when(
-    str_detect(medicaidOversight, "NA ")  ~ "NA",
-    
-    str_detect(medicaidOversight, "No SHO Oversight")  ~ "No SHO oversight",
-    
-     medicaid == "Data Not Available" ~ "Data Not Available",
-    
-    str_detect(medicaidOversight, "designee")  ~ "SHO oversight",
-    
-    TRUE ~ "SHO oversight"
+  TRUE ~ "Umbrella Agency: S/THO Oversight"
     
   )
+  
+  # medicaidGroup = dplyr::case_when(
+  #   str_detect(medicaidOversight, "NA ")  ~ "NA",
+  #   
+  #   str_detect(medicaidOversight, "Umbrella Agency: No S/THO Oversight")  ~ "Umbrella Agency: No S/THO Oversight",
+  #   
+  #    medicaid == "Data Not Available" ~ "Data Not Available",
+  #   
+  #   str_detect(medicaidOversight, "designee")  ~ "SHO oversight",
+  #   
+  #   TRUE ~ "SHO oversight"
+  #   
+  # )
+  
   )
 
 gov <- read_csv("revisedMedicaidMapGovStruct.csv") |>
@@ -185,23 +187,20 @@ combinedData <- combinedData |>
   drop_na(medicaidOversight)|>
   
   dplyr::mutate(colors = dplyr::case_when(
-    medicaidOversight == "NA | Freestanding" ~ main_orange,
-    medicaidOversight == "No SHO oversight" ~ icon_accent,
-    medicaidOversight == "SHO Oversight" ~ main_blue,
-    medicaidOversight == "SHO Oversight (SHO designee does not have oversight)" ~ light_blue,
-    
+    medicaidOversight == "Freestanding Agency: No S/THO Oversight" ~ icon_accent,
+    medicaidOversight == "Umbrella Agency: No S/THO Oversight" ~ main_orange,
+    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ main_blue,
+
     medicaidOversight == "NA | Does not have Medicaid" | medicaidOversight == "Data Not Available" ~ NA_color,
     
     TRUE ~ NA_color
   ),
   
   labels = dplyr::case_when(
-    medicaidOversight == "SHO Oversight" |
-    medicaidOversight ==  "SHO Oversight (SHO designee does not have oversight)" ~ "✅",
+    medicaidOversight == "Umbrella Agency: S/THO Oversight"  ~ "✅ S/THO Oversight",
 
-    medicaidOversight == "No SHO Oversight" ~ "❌", 
-    
-    medicaidOversight == "NA | Freestanding" ~ "◽️",
+    medicaidOversight == "Umbrella Agency: No S/THO Oversight" |
+      medicaidOversight == "Freestanding Agency: No S/THO Oversight" ~ "❌ No S/THO Oversight", 
     
     TRUE ~ "◽️"
   ),
@@ -220,13 +219,15 @@ combinedData <- combinedData |>
   
   SHO = str_replace(SHO, "^([^,]+),\\s*(.+)$", "\\2 \\1"),
   description = dplyr::case_when(
-    medicaidOversight == "NA | Freestanding" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
+    medicaidOversight == "Freestanding Agency: No S/THO Oversight" & jurisdictionName != "Alabama" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
     
-    medicaidOversight == "No SHO Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
+        medicaidOversight == "Freestanding Agency: No S/THO Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
     
-    medicaidOversight == "SHO Oversight" ~  paste(' <b>has oversight</b> over Medicaid.'),
+    medicaidOversight == "Umbrella Agency: No S/THO Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
     
-    medicaidOversight == "SHO Oversight (SHO designee does not have oversight)" ~  paste(' <b>has oversight</b> over Medicaid, but the SHO designee does not.'),
+    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~  paste(' <b>has oversight</b> over Medicaid.'),
+    
+    medicaid == "SHO Oversight (SHO designee does not have oversight)" ~  paste(' <b>has oversight</b> over Medicaid, but the SHO designee does not.'),
     
     medicaidOversight == "NA | Does not have Medicaid" ~ paste(' <b>does not have </b> Medicaid.'),
     
@@ -253,6 +254,72 @@ data_classes <- combinedData |>
          )|>
   list_parse() # end of data classes
 
+
+
+
+m <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata.json")
+m2 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata2.json")
+m3 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata3.json")
+m4 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata4.json")
+
+us_map <- m[[1]]$mapData
+
+us_map <- purrr::map2(us_map, m2[[1]]$mapData, \(m1, m2) {
+  m1$fips <- as.numeric(m1$fips)
+  m1$path <- m2$path
+  return(m1)
+})
+
+
+us_map2 <- m3[[1]]$mapData
+
+us_map2 <- purrr::map(us_map2, \(m) {
+  m$fips <- as.numeric(m$fips)
+  return(m)
+})
+
+us_map3 <- m4[[1]]$mapData
+
+us_map3 <- purrr::map(us_map3, \(m3) {
+  m3$id <- m3$id |>
+    (\(.) gsub("id", "", .))() |>
+    as.integer() |>
+    (\(.) . - 1)() |>
+    (\(.) paste0("id", .))()
+  
+  cn <- us_map |>
+    purrr::keep(\(x) {
+      x$id == m3$id
+    })
+  
+  if(length(cn) == 0){
+    cat("Could not find:", m3$id, "\n")
+    return(m3)
+  }
+  
+  m3$fips <- as.numeric(cn[[1]]$fips)
+  m3$name <- cn[[1]]$name
+  return(m3)
+})
+
+separators <- m2[[2]]$mapData
+
+separators2 <- m4[[2]]$mapData
+
+sep <- separators2
+
+map <- us_map3
+  
+data <- combinedData
+  
+data$value <- NULL
+  
+map <- map |>
+    purrr::map_dfr(as.data.frame) |>
+    dplyr::left_join(data, by = 'fips') |>
+    dplyr::rename(value = 'medicaidOversight')
+  
+
 ```
 
 
@@ -269,49 +336,35 @@ data_classes <- combinedData |>
 color_mappings <- list(
   # SHO Oversight group
   list(
-    group = "SHO Oversight",
-    subgroup = "SHO Oversight",
-    display_name = "SHO Oversight",
-    solid_color = light_blue,
-    pattern_color = wave_pattern,
-    order = 1
-  ),
-  list(
-    group = "SHO Oversight", 
-    subgroup = "SHO Oversight (SHO designee does not have oversight)",
-    display_name = "SHO Oversight <span style='font-size:0.8em; font-weight:light; font-style:italics;'>(SHO designee does not have oversight)</span>",
+    group = "Umbrella Agency",
+    subgroup = "Umbrella Agency: S/THO Oversight",
+    display_name = "Umbrella Agency: S/THO Oversight",
     solid_color = main_blue,
     pattern_color = chainlink_pattern,
-    order = 2
+    order = 1
   ),
+
   
   # No SHO Oversight group
   list(
-    group = "No SHO Oversight",
-    subgroup = "No SHO Oversight",
-    display_name = "No SHO Oversight",
+    group = "Umbrella Agency",
+    subgroup = "Umbrella Agency: No S/THO Oversight",
+    display_name = "Umbrella Agency: No S/THO Oversight",
     solid_color = main_orange,
     pattern_color = triangles_pattern,
-    order = 3
+    order = 2
   ),
   
   # Not Applicable group
   list(
-    group = "Not Applicable",
-    subgroup = "NA | Freestanding",
-    display_name = "Not Applicable <span style='font-size:0.8em; font-weight:normal;'>(Freestanding agency)</span>",
+    group = "Freestanding Agency",
+    subgroup = "Freestanding Agency: No S/THO Oversight",
+    display_name = "Freestanding Agency: No S/THO Oversight",
     solid_color = icon_accent,
     pattern_color = parquet_pattern,
-    order = 4
+    order = 3
   ),
-  list(
-    group = "Not Applicable",
-    subgroup = "NA | Does not have Medicaid",
-    display_name = "Not Applicable <span style='font-size:0.8em; font-weight:normal;'>(Does not have Medicaid)</span>",
-    solid_color = grey,
-    pattern_color = na_pattern,
-    order = 5
-  ),
+
   
   # Data Not Available
   list(
@@ -320,7 +373,7 @@ color_mappings <- list(
     display_name = "Data Not Available",
     solid_color = NA_color,
     pattern_color = NA_color,
-    order = 6
+    order = 4
   )
 )
 
@@ -355,7 +408,7 @@ medicaidOversightMap <- highchart(type = "map") |>
   # Load dependencies (pattern-fill must be first)
   hc_add_dependency("modules/pattern-fill.js") |> 
   hc_add_dependency("accessibility.js") |>
-  hc_size(height = 800) |>
+  hc_size(height = 650) |>
   hc_plotOptions(map = list(
     linecap = "round",
     states = list(hover = list(enabled = TRUE))
@@ -373,12 +426,9 @@ medicaidOversightMap <- highchart(type = "map") |>
       )
     )
   ) |>
-  hc_add_custom_map_cat(
-    data = combinedData,
-    value = "medicaidOversight",
-    group = "medicaidGroup",
-    joinBy = "fips",
-    mapType = "c",
+  highcharter::hc_add_series(
+    type = "map",
+    data = map,
     name = "Medicaid Oversight",
     borderColor = "black",
     borderWidth = .85,
@@ -386,6 +436,14 @@ medicaidOversightMap <- highchart(type = "map") |>
              "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
     dataLabels = list(enabled = FALSE, format = "{point.labels}")
   ) |>
+  highcharter::hc_add_series(
+    type = "mapline",
+    mapData = sep,
+    showInLegend = FALSE,
+    enableMouseTracking = FALSE,
+    includeInDataExport = FALSE
+  ) |>
+
   # Use pattern color axis instead of solid
   hc_colorAxis(color_axis_solid) |>  
   hc_subtitle(text = "State/Territory Health Agencies") |>
@@ -409,20 +467,31 @@ medicaidOversightMap <- highchart(type = "map") |>
     # layout = "horizontal",
     # width = "200%",
     align = "left",
-    title = list(text = "S/THA Medicaid Oversight"),
-    itemStyle = list(
-    whiteSpace = "normal"
-
-  )
+    title = list(text = "S/THA Medicaid Oversight")
+  #   ,
+  #   itemStyle = list(
+  #   whiteSpace = "normal"
+  # 
+  # )
   ) |>
   hc_add_theme(asthoTheme) |>
   highcharter::hc_exporting(
     enabled = TRUE,
     accessibility = list(enabled = TRUE),
     formAttributes = list(target = "_blank"),
+    showTable = FALSE,
     sourceHeight = 700,
     sourceWidth = 1200,
     allowHTML = TRUE,
+    columnHeaderFormatter = "function (item, key) {
+     
+                return {
+                    topLevelColumnTitle: key,
+                    columnTitle: key 
+                }
+            }",
+
+    filename = "phAgencyMedicaidOversight",
     buttons = list(
       contextButton = list(
         symbol = "menu",
@@ -703,10 +772,10 @@ tags$script(HTML(sprintf('
           The <b style="color: ${"%s"}; text-align: center !important;"> ${point.agency}</b>
           <style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br>
           <div style="padding: 10px 0; font-size: .9em; text-align: left;">
-            <strong>Medicaid Oversight:</strong> ${point.labels} ${point.value}<br>
-            <strong>S/THO:</strong> ${point.SHO}<br>
+            <strong>Medicaid Oversight:</strong> ${point.labels} <br>
             <strong>Structure:</strong> ${point.structure}<br>
             <strong>Governance:</strong> ${point.governance2022}<br>
+            <strong>S/THO:</strong> ${point.SHO}<br>
             <strong>Population Size:</strong> ${point.size}<br>
             <strong>Population Density:</strong> ${point.density}<br>
             <strong>HHS Region:</strong> ${point.HHSRegion}<br>
