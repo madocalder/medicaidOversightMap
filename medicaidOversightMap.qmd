@@ -125,9 +125,9 @@ medicaid <- read_excel("updatedMemberData.xlsx")|>
     
     medicaidOversight = dplyr::case_when(
    
-       medicaid == "NA - Freestanding" ~ "Freestanding Agency: No S/THO Oversight",
+       medicaid == "NA - Freestanding" ~ "Freestanding Agency: Separate Oversight",
     
-    tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: No S/THO Oversight",
+    tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: Separate Oversight",
     
   medicaid == "NA (does not have Medicaid)" ~ "NA",
   
@@ -140,7 +140,7 @@ medicaid <- read_excel("updatedMemberData.xlsx")|>
   # medicaidGroup = dplyr::case_when(
   #   str_detect(medicaidOversight, "NA ")  ~ "NA",
   #   
-  #   str_detect(medicaidOversight, "Umbrella Agency: No S/THO Oversight")  ~ "Umbrella Agency: No S/THO Oversight",
+  #   str_detect(medicaidOversight, "Umbrella Agency: Separate Oversight")  ~ "Umbrella Agency: Separate Oversight",
   #   
   #    medicaid == "Data Not Available" ~ "Data Not Available",
   #   
@@ -187,8 +187,8 @@ combinedData <- combinedData |>
   drop_na(medicaidOversight)|>
   
   dplyr::mutate(colors = dplyr::case_when(
-    medicaidOversight == "Freestanding Agency: No S/THO Oversight" ~ icon_accent,
-    medicaidOversight == "Umbrella Agency: No S/THO Oversight" ~ main_orange,
+    medicaidOversight == "Freestanding Agency: Separate Oversight" ~ icon_accent,
+    medicaidOversight == "Umbrella Agency: Separate Oversight" ~ main_orange,
     medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ main_blue,
 
     medicaidOversight == "NA | Does not have Medicaid" | medicaidOversight == "Data Not Available" ~ NA_color,
@@ -199,8 +199,8 @@ combinedData <- combinedData |>
   labels = dplyr::case_when(
     medicaidOversight == "Umbrella Agency: S/THO Oversight"  ~ "✅ S/THO Oversight",
 
-    medicaidOversight == "Umbrella Agency: No S/THO Oversight" |
-      medicaidOversight == "Freestanding Agency: No S/THO Oversight" ~ "❌ No S/THO Oversight", 
+    medicaidOversight == "Umbrella Agency: Separate Oversight" |
+      medicaidOversight == "Freestanding Agency: Separate Oversight" ~ "❌ Separate Oversight", 
     
     TRUE ~ "◽️"
   ),
@@ -219,11 +219,11 @@ combinedData <- combinedData |>
   
   SHO = str_replace(SHO, "^([^,]+),\\s*(.+)$", "\\2 \\1"),
   description = dplyr::case_when(
-    medicaidOversight == "Freestanding Agency: No S/THO Oversight" & jurisdictionName != "Alabama" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
+    medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName != "Alabama" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
     
-        medicaidOversight == "Freestanding Agency: No S/THO Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
+        medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
     
-    medicaidOversight == "Umbrella Agency: No S/THO Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
+    medicaidOversight == "Umbrella Agency: Separate Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
     
     medicaidOversight == "Umbrella Agency: S/THO Oversight" ~  paste(' <b>has oversight</b> over Medicaid.'),
     
@@ -322,7 +322,6 @@ map <- map |>
 
 ```
 
-
 ```{r, echo = FALSE, style="font-family: Jost"}
 
 
@@ -348,8 +347,8 @@ color_mappings <- list(
   # No SHO Oversight group
   list(
     group = "Umbrella Agency",
-    subgroup = "Umbrella Agency: No S/THO Oversight",
-    display_name = "Umbrella Agency: No S/THO Oversight",
+    subgroup = "Umbrella Agency: Separate Oversight",
+    display_name = "Umbrella Agency: Separate Oversight",
     solid_color = main_orange,
     pattern_color = triangles_pattern,
     order = 2
@@ -358,8 +357,8 @@ color_mappings <- list(
   # Not Applicable group
   list(
     group = "Freestanding Agency",
-    subgroup = "Freestanding Agency: No S/THO Oversight",
-    display_name = "Freestanding Agency: No S/THO Oversight",
+    subgroup = "Freestanding Agency: Separate Oversight",
+    display_name = "Freestanding Agency: Separate Oversight",
     solid_color = icon_accent,
     pattern_color = parquet_pattern,
     order = 3
