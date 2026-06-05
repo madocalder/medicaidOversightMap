@@ -197,10 +197,10 @@ combinedData <- combinedData |>
   ),
   
   labels = dplyr::case_when(
-    medicaidOversight == "Umbrella Agency: S/THO Oversight"  ~ "✅ S/THO Oversight",
+    medicaidOversight == "Umbrella Agency: S/THO Oversight"  ~ "S/THO Oversight",
 
     medicaidOversight == "Umbrella Agency: Separate Oversight" |
-      medicaidOversight == "Freestanding Agency: Separate Oversight" ~ "❌ Separate Oversight", 
+      medicaidOversight == "Freestanding Agency: Separate Oversight" ~ "Separate Oversight", 
     
     TRUE ~ "◽️"
   ),
@@ -445,7 +445,7 @@ medicaidOversightMap <- highchart(type = "map") |>
 
   # Use pattern color axis instead of solid
   hc_colorAxis(color_axis_solid) |>  
-  hc_subtitle(text = "State/Territory Health Agencies") |>
+  hc_subtitle(text = "S/THAs") |>
   # map title
   hc_title(
     text = paste("Medicaid Oversight"),
