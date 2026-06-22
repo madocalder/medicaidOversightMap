@@ -1,0 +1,14 @@
+name: medicaidoversightmap
+title: medicaidOversightMap
+username: astho
+account: astho
+server: connect.posit.cloud
+hostUrl: https://api.connect.posit.cloud/v1
+appId: 019ef0f0-b941-3eb4-24ba-69a883aa115d
+bundleId:
+url: https://connect.posit.cloud/astho/content/019ef0f0-b941-3eb4-24ba-69a883aa115d
+version: 1
+quarto_version: 1.9.37
+quarto_engines: knitr
+asMultiple: FALSE
+asStatic: FALSE
