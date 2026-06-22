@@ -15,7 +15,6 @@ output:
 # Load Packages
 options(readr.show_col_types = FALSE)
 
-
 library(highcharter)
 library(tidyverse)
 library(tidyr)
@@ -23,8 +22,7 @@ library(dplyr)
 library(readxl)
 library(custom.map)
 library(htmltools)
-
-
+library(glue)
 
 main_blue <- "#005182"
 light_blue <- "#70C4E8"
@@ -89,9 +87,6 @@ asthoTheme <- hc_theme(
         fontWeight = "500",
         fontSize = ".9em"))),
   legend = list(
-    # symbolHeight = "1.8em",
-    # symbolWidth = "1.8em",
-    # symbolRadius = .5,
     itemStyle = list(
       fontFamily = "Jost",
       color = dark_accent,
@@ -107,7 +102,6 @@ asthoTheme <- hc_theme(
     padding = 10,
     borderRadius = 20,
     backgroundColor = "#fff",
-
     style = list(
       fontFamily = "Jost",
       fontSize = ".8em")),
@@ -115,48 +109,23 @@ asthoTheme <- hc_theme(
     color = light_accent)
 )
 
-
-
 # load data -------
-
-medicaid <- read_excel("updatedMemberData.xlsx")|>
+medicaid <- read_excel("updatedMemberData.xlsx") |>
   rename('medicaid' = "Oversight?") |>
   mutate( 
-    
     medicaidOversight = dplyr::case_when(
-   
-       medicaid == "NA - Freestanding" ~ "Freestanding Agency: Separate Oversight",
-    
-    tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: Separate Oversight",
-    
-  medicaid == "NA (does not have Medicaid)" ~ "NA",
-  
-  medicaid == "Data Not Available" ~ "Data Not Available",
-  
-  TRUE ~ "Umbrella Agency: S/THO Oversight"
-    
-  )
-  
-  # medicaidGroup = dplyr::case_when(
-  #   str_detect(medicaidOversight, "NA ")  ~ "NA",
-  #   
-  #   str_detect(medicaidOversight, "Umbrella Agency: Separate Oversight")  ~ "Umbrella Agency: Separate Oversight",
-  #   
-  #    medicaid == "Data Not Available" ~ "Data Not Available",
-  #   
-  #   str_detect(medicaidOversight, "designee")  ~ "SHO oversight",
-  #   
-  #   TRUE ~ "SHO oversight"
-  #   
-  # )
-  
+      medicaid == "NA - Freestanding" ~ "Freestanding Agency: Separate Oversight",
+      tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: Separate Oversight",
+      medicaid == "NA (does not have Medicaid)" ~ "NA",
+      medicaid == "Data Not Available" ~ "Data Not Available",
+      TRUE ~ "Umbrella Agency: S/THO Oversight"
+    )
   )
 
 gov <- read_csv("revisedMedicaidMapGovStruct.csv") |>
   select(FIPSCode, governance, JurisdictionName, HHSRegion, size, density) |>
   rename(governance2022 = governance,
          jurisdictionName = JurisdictionName)
-
 
 export <- list(
   list(
@@ -171,73 +140,47 @@ export <- list(
     text = "PDF",
     onclick = JS("function () {
                    this.exportChart({ type: 'application/pdf' }); }"))
-) #end of the exporting code
+)
 
 ```
 
 ```{r, echo = FALSE}
 
-
-
 combinedData <- left_join(gov, medicaid, by = "jurisdictionName")
 
 combinedData <- combinedData |>
   rename(fips = FIPSCode) |>
-  
-  drop_na(medicaidOversight)|>
-  
+  drop_na(medicaidOversight) |>
   dplyr::mutate(colors = dplyr::case_when(
     medicaidOversight == "Freestanding Agency: Separate Oversight" ~ icon_accent,
     medicaidOversight == "Umbrella Agency: Separate Oversight" ~ main_orange,
     medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ main_blue,
-
     medicaidOversight == "NA | Does not have Medicaid" | medicaidOversight == "Data Not Available" ~ NA_color,
-    
     TRUE ~ NA_color
   ),
-  
   labels = dplyr::case_when(
-    medicaidOversight == "Umbrella Agency: S/THO Oversight"  ~ "S/THO Oversight",
-
+    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ "S/THO Oversight",
     medicaidOversight == "Umbrella Agency: Separate Oversight" |
       medicaidOversight == "Freestanding Agency: Separate Oversight" ~ "Separate Oversight", 
-    
     TRUE ~ "◽️"
   ),
   agency = `Account Name`,
   governance = `Governance Classification`,
   structure = `Agency Structure`,
-  
- 
-    
   population = format(Population, big.mark = ","),
-  
   SHO = `S/THO`,
-  
   orgChartLink = `Org Chart`,
-  # linkCode = HTML(paste0('<a href="', citation, '">', agency, ' Org Chart </a>')),
-  
   SHO = str_replace(SHO, "^([^,]+),\\s*(.+)$", "\\2 \\1"),
   description = dplyr::case_when(
     medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName != "Alabama" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
-    
-        medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
-    
+    medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
     medicaidOversight == "Umbrella Agency: Separate Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
-    
-    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~  paste(' <b>has oversight</b> over Medicaid.'),
-    
-    medicaid == "SHO Oversight (SHO designee does not have oversight)" ~  paste(' <b>has oversight</b> over Medicaid, but the SHO designee does not.'),
-    
+    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ paste(' <b>has oversight</b> over Medicaid.'),
+    medicaid == "SHO Oversight (SHO designee does not have oversight)" ~ paste(' <b>has oversight</b> over Medicaid, but the SHO designee does not.'),
     medicaidOversight == "NA | Does not have Medicaid" ~ paste(' <b>does not have </b> Medicaid.'),
-    
     medicaidOversight == "Data Not Available" ~ NA_color,
-    
     TRUE ~ paste('Medicaid oversight data is not available for', agency)
-    
   ))
-
-
 
 data_classes <- combinedData |>
   mutate(value = medicaidOversight) |>
@@ -248,14 +191,8 @@ data_classes <- combinedData |>
   arrange(value) |>
   rename(name = medicaidOversight, from = value) |>
   mutate(to = from,
-         name = from
-
-         
-         )|>
-  list_parse() # end of data classes
-
-
-
+         name = from) |>
+  list_parse()
 
 m <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata.json")
 m2 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata2.json")
@@ -263,23 +200,19 @@ m3 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata3.json")
 m4 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata4.json")
 
 us_map <- m[[1]]$mapData
-
 us_map <- purrr::map2(us_map, m2[[1]]$mapData, \(m1, m2) {
   m1$fips <- as.numeric(m1$fips)
   m1$path <- m2$path
   return(m1)
 })
 
-
 us_map2 <- m3[[1]]$mapData
-
 us_map2 <- purrr::map(us_map2, \(m) {
   m$fips <- as.numeric(m$fips)
   return(m)
 })
 
 us_map3 <- m4[[1]]$mapData
-
 us_map3 <- purrr::map(us_map3, \(m3) {
   m3$id <- m3$id |>
     (\(.) gsub("id", "", .))() |>
@@ -303,37 +236,26 @@ us_map3 <- purrr::map(us_map3, \(m3) {
 })
 
 separators <- m2[[2]]$mapData
-
 separators2 <- m4[[2]]$mapData
-
 sep <- separators2
-
 map <- us_map3
-  
 data <- combinedData
-  
 data$value <- NULL
-  
+
 map <- map |>
-    purrr::map_dfr(as.data.frame) |>
-    dplyr::left_join(data, by = 'fips') |>
-    dplyr::rename(value = 'medicaidOversight')
-  
+  purrr::map_dfr(as.data.frame) |>
+  dplyr::left_join(data, by = 'fips') |>
+  dplyr::rename(value = 'medicaidOversight')
 
 ```
 
 ```{r, echo = FALSE, style="font-family: Jost"}
 
-
-  library(highcharter)
-
- source("patterns.R")
-
-
+library(highcharter)
+source("patterns.R")
 
 # Define your color mappings with combined labels
 color_mappings <- list(
-  # SHO Oversight group
   list(
     group = "Umbrella Agency",
     subgroup = "Umbrella Agency: S/THO Oversight",
@@ -342,9 +264,6 @@ color_mappings <- list(
     pattern_color = chainlink_pattern,
     order = 1
   ),
-
-  
-  # No SHO Oversight group
   list(
     group = "Umbrella Agency",
     subgroup = "Umbrella Agency: Separate Oversight",
@@ -353,8 +272,6 @@ color_mappings <- list(
     pattern_color = triangles_pattern,
     order = 2
   ),
-  
-  # Not Applicable group
   list(
     group = "Freestanding Agency",
     subgroup = "Freestanding Agency: Separate Oversight",
@@ -363,9 +280,6 @@ color_mappings <- list(
     pattern_color = parquet_pattern,
     order = 3
   ),
-
-  
-  # Data Not Available
   list(
     group = "Data Not Available",
     subgroup = "Data Not Available",
@@ -386,7 +300,7 @@ color_axis_solid <- list(
       from = mapping$subgroup,
       to = mapping$subgroup,
       color = mapping$solid_color,
-      name = mapping$display_name  # Use combined display name
+      name = mapping$display_name
     )
   })
 )
@@ -398,30 +312,83 @@ color_axis_pattern <- list(
       from = mapping$subgroup,
       to = mapping$subgroup,
       color = mapping$pattern_color,
-      name = mapping$display_name  # Same combined display name
+      name = mapping$display_name
     )
   })
 )
 
 medicaidOversightMap <- highchart(type = "map") |>
-  # Load dependencies (pattern-fill must be first)
   hc_add_dependency("modules/pattern-fill.js") |> 
-  hc_add_dependency("accessibility.js") |>
+  hc_add_dependency("modules/accessibility.js") |>
   hc_size(height = 650) |>
-  hc_plotOptions(map = list(
-    linecap = "round",
-    states = list(hover = list(enabled = TRUE))
-    )) |>
-  # Fixed accessibility configuration
+  hc_plotOptions(
+    map = list(
+      linecap = "round",
+      states = list(
+        hover = list(
+          enabled = TRUE,
+          borderColor = '#000000',
+          borderWidth = 2,
+          brightness = 0.2
+        ),
+        select = list(
+          enabled = TRUE,
+          borderColor = '#000000',
+          borderWidth = 3
+        )
+      ),
+      point = list(
+        events = list(
+          click = JS("function() {
+          if (this.orgChartLink != null && this.orgChartLink != '') {
+            window.open(this.orgChartLink, '_blank');
+          }
+        }")
+        )
+      ),
+      keyboardNavigation = list(
+        enabled = TRUE,
+        focusBorder = list(
+          enabled = TRUE,
+          style = list(
+            color = '#005182',
+            lineWidth = 3,
+            borderRadius = 2
+          )
+        ),
+        seriesNavigation = list(
+          mode = 'serialize'
+        )
+      )
+    ),
+    series = list(
+      animation = TRUE,
+      allowPointSelect = TRUE,
+      cursor = 'pointer'
+    )
+  ) |>
   hc_chart(
     accessibility = list(
       enabled = TRUE,
-      keyboardNavigation = list(enabled = TRUE),
+      keyboardNavigation = list(
+        enabled = TRUE,
+        focusBorder = list(
+          enabled = TRUE,
+          style = list(
+            color = '#005182',
+            lineWidth = 3,
+            borderRadius = 2
+          )
+        )
+      ),
       point = list(
-        valueDescriptionFormat = "{point.description}",
+        valueDescriptionFormat = "{point.jurisdictionName}: {point.medicaidOversight}. Agency: {point.agency}. Structure: {point.structure}. Governance: {point.governance2022}. Click to view organization chart.",
         descriptionFormatter = JS("function() {
-          return this.jurisdictionName + ': ' + this.medicaidOversight;
-        }")
+        return this.jurisdictionName + ': ' + this.medicaidOversight + '. Agency: ' + this.agency + '. Structure: ' + this.structure + '. Governance: ' + this.governance2022 + '. Press Enter to view organization chart.';
+      }")
+      ),
+      series = list(
+        descriptionFormat = "Map of {series.name}. Use arrow keys to navigate between states and territories. Press Enter to open the organization chart for the selected state or territory."
       )
     )
   ) |>
@@ -429,11 +396,22 @@ medicaidOversightMap <- highchart(type = "map") |>
     type = "map",
     data = map,
     name = "Medicaid Oversight",
+    category = map$jurisdictionName,
     borderColor = "black",
     borderWidth = .85,
     keys = c("jurisdictionName", "group", "value", "description", "governance2022",
              "structure", "HHSRegion", "region", "size", "density", "SHO", "agency", "labels", "orgChartLink"),
-    dataLabels = list(enabled = FALSE, format = "{point.labels}")
+    dataLabels = list(
+      enabled = FALSE,
+      format = "{point.labels}"
+    ),
+    point = list(
+      description = JS("function() {
+      return this.jurisdictionName + ': ' + this.medicaidOversight + '. Agency: ' + this.agency + '. Structure: ' + this.structure + '. Governance: ' + this.governance2022 + '. Press Enter to view organization chart.';
+    }")
+    ),
+    allowPointSelect = TRUE,
+    cursor = 'pointer'
   ) |>
   highcharter::hc_add_series(
     type = "mapline",
@@ -442,11 +420,8 @@ medicaidOversightMap <- highchart(type = "map") |>
     enableMouseTracking = FALSE,
     includeInDataExport = FALSE
   ) |>
-
-  # Use pattern color axis instead of solid
   hc_colorAxis(color_axis_solid) |>  
   hc_subtitle(text = "S/THAs") |>
-  # map title
   hc_title(
     text = paste("Medicaid Oversight"),
     margin = 10,
@@ -463,15 +438,14 @@ medicaidOversightMap <- highchart(type = "map") |>
   ) |>
   hc_legend(
     enabled = TRUE,
-    # layout = "horizontal",
-    # width = "200%",
     align = "left",
-    title = list(text = "S/THA Medicaid Oversight")
-  #   ,
-  #   itemStyle = list(
-  #   whiteSpace = "normal"
-  # 
-  # )
+    title = list(text = "S/THA Medicaid Oversight"),
+    accessibility = list(
+      enabled = TRUE,
+      keyboardNavigation = list(
+        enabled = TRUE
+      )
+    )
   ) |>
   hc_add_theme(asthoTheme) |>
   highcharter::hc_exporting(
@@ -483,14 +457,13 @@ medicaidOversightMap <- highchart(type = "map") |>
     sourceWidth = 1200,
     allowHTML = TRUE,
     columnHeaderFormatter = "function (item, key) {
-     
-                return {
-                    topLevelColumnTitle: key,
-                    columnTitle: key 
-                }
-            }",
-
-    filename = "phAgencyMedicaidOversight",
+      return {
+        topLevelColumnTitle: key,
+        columnTitle: key 
+      }
+    }",
+    
+    filename = "PH-Agency-Medicaid-Oversight",
     buttons = list(
       contextButton = list(
         symbol = "menu",
@@ -512,277 +485,436 @@ medicaidOversightMap <- highchart(type = "map") |>
 library(htmltools)
 library(shiny)
 
-# Create Map Container
+# Disable default Highcharts tooltip
 medicaidOversightMap <- medicaidOversightMap |> 
-  hc_tooltip(enabled = FALSE) |> # Disable default tooltip
+  hc_tooltip(enabled = FALSE) |>
   hc_add_dependency(name = "modules/accessibility.js") |>
   hc_plotOptions(
     series = list(
-    events = list(
-      click = JS("function(self) { 
-    if (self.point.orgChartLink != null) {
-        window.open(self.point.orgChartLink, '_blank');
-    }
-}")
+      events = list(
+        click = JS("function(self) { 
+          if (self.point.orgChartLink != null) {
+            window.open(self.point.orgChartLink, '_blank');
+          }
+        }")
       )
     )
-  ) 
-
-
+  )
 
 # 3. Combine Elements with JavaScript
 browsable(
   tagList(
-    
-        tags$style(HTML(
-      sprintf("
-        /* Rounded toggle switch */
-        .switch {
-    position: relative;
-    display: inline-block;
-    width: 40px;
-    height: 24px;
-       }
-  
- /*  .switch-label {
-    font-family: 'Jost', sans-serif;
-    font-size: .8em;
-    white-space: nowrap;
-  } */
-        
-        .slider {
-          position: absolute;
-          cursor: pointer;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: #ccc;
-          transition: .4s;
-          border-radius: 34px;
-        }
-        
-        .slider:before {
-          position: absolute;
-          content: '';
-          height: 18px;
-          width: 18px;
-          left: 3px;
-          bottom: 3px;
-          background-color: white;
-          transition: .4s;
-          border-radius: 50%%;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        input:checked + .slider {
-          background-color: %s;
-        }
-        
-        input:checked + .slider:before {
-          transform: translateX(16px);
-        }
-        
-        /* Optional label */
-       /*   .switch-label {
-          position: absolute;
-          top: 3px;
-          left: 45px;
-          z-index: 1000;
-          color: %s;
-          font-family: 'Jost', sans-serif;
-          font-size: 0.8em;
-        } */
-      ", main_blue, main_orange)
-    )),
-    
-    tags$style(HTML('
-     .responsive-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-}
-
-.map-wrapper {
-  flex: 1;
-  min-width: 0; /* Fixes flexbox overflow issue */
-}
-
-#custom-tooltip {
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
-  position: sticky;
-  top: 20px;
-  transition: all 0.3s;
-  background: white;
-  border: 2px solid #70C4E8;
-  border-radius: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 10px;
-}
-
-.body {
-line-height: unset !important;
-}
-
-@media (min-width: 650px) {
-  .responsive-container {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  
-  .map-wrapper {
-    flex: 1 1 52%;
-  }
-  
-  #custom-tooltip {
-    flex: 1 1 48%;
-    max-height: 650px;
-  }
-}
-    ')),
-
-    tags$div(
-  class = "switch-container",
-  style = "position: absolute; top: 10px; left: 10px; z-index: 1000;
-          display: flex; flex-direction: column; gap: 2px; align-items: flex-start;",
-  # Label element
-  tags$span(
-    class = "switch-label",
-    "Pattern Fill?",
-    style = sprintf("color: %s; font-family: 'Jost'; font-size: 0.8em; margin-left: 3px;", main_blue)
-  ),
-  # Switch element
-  tags$label(
-    class = "switch",
-    tags$input(
-      type = "checkbox",
-      id = "pattern-toggle",
-      style = "visibility: hidden;"
+    # H1 heading for screen readers
+    tags$h1(
+      class = "sr-only",
+      style = "position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;",
+      "S/THA Medicaid Oversight Map"
     ),
-    tags$span(class = "slider round")
-  ),
-  tags$script(HTML(sprintf('
-  document.getElementById("pattern-toggle").addEventListener("change", function() {
-    Highcharts.charts.forEach(chart => {
-      if (chart.colorAxis && chart.colorAxis[0]) {
-        chart.colorAxis[0].update({
-          dataClasses: this.checked ? %s : %s
-        });
-      }
-    });
-  });
-', 
-  jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
-  jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
-)))
-),
-    div(class = "responsive-container",
-        style = "padding-top: 17px;",
-        
-
-        # Map container
-        div(class = "map-wrapper",
-            style = "position: relative; width: 100%;",
-                medicaidOversightMap
-            ),
-        
-        # Tooltip container
-        div(
-          id = "custom-tooltip",
-          style = paste(
-            "width: 700px; max-width: 100%; transition: all 0.3s;",
-            "background: white; border: 2px solid ", light_blue, "; ",
-            "border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); ",
-            "padding: 10px; overflow-y: auto;"
-          ),
-          HTML(paste(
-            "<div style='font-size: 1em;text-align: left !important; color: ", main_blue, ";'>",
-            "Hover over a state or territory to read more information about it.</div>"
-          ))
-        )
-    ),
-    tags$script(HTML(sprintf('
-  document.getElementById("pattern-toggle").addEventListener("change", function() {
-    Highcharts.charts.forEach(chart => {
-      chart.colorAxis[0].update({
-        dataClasses: this.checked ? %s : %s
-      });
-    });
-  });
-  ', 
-  jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
-  jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
-))),
     
-    # Keep the existing JavaScript
-tags$script(HTML(sprintf('
-  document.addEventListener("DOMContentLoaded", function() {
-    const defaultMessage = `<div style="padding: 15px; font-size: 1em; text-align: left !important; color: %s;">
-                             Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart in a new tab.</div>`;
-    const tooltip = document.getElementById("custom-tooltip");
-    let lastActivePoint = null;
-
-    Highcharts.charts.forEach(function(chart) {
-      // Store last active point
-      const container = chart.container;
+    # Skip link for keyboard users
+    tags$a(
+      class = "skip-link",
+      href = "#quarto-document-content",
+      "Skip to main content"
+    ),
+    
       
-      container.onmousemove = function(e) {
-        const point = chart.hoverPoint;
+      tags$style(HTML(
+      
+      glue::glue("
+    .sr-only {{
+      position: absolute;
+      left: -10000px;
+      top: auto;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }}
+    
+    /* Skip link styles */
+    .skip-link {{
+      position: absolute;
+      top: -40px;
+      left: 0;
+      background: #005182;
+      color: white;
+      padding: 8px 16px;
+      z-index: 9999;
+      font-family: 'Jost', sans-serif;
+      text-decoration: none;
+      border-radius: 4px;
+    }}
+    
+    .skip-link:focus-visible {{
+      top: 10px;
+      left: 10px;
+      outline: 0px solid #ffd780;
+    }}
+    
+    /* Rounded toggle switch */
+    .switch {{
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 24px;
+    }}
+    
+    .slider {{
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }}
+    
+    .slider:before {{
+      position: absolute;
+      content: '';
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }}
+    
+    input:checked + .slider {{
+      background-color: {main_blue};
+    }}
+    
+    input:checked + .slider:before {{
+      transform: translateX(16px);
+    }}
+    
+    /* Hide tabster dummy elements from accessibility checks */
+    [data-tabster-dummy] {{
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }}
+    
+    /* Responsive layout */
+    .responsive-container {{
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      padding-top: 17px;
+    }}
+    
+    .map-wrapper {{
+      flex: 2;
+      min-width: 0;
+    }}
+    
+    #info-panel {{
+      flex: 1;
+      min-width: 230px;
+      max-width: 400px;
+      padding: 20px;
+      background: white;
+      border: 2px solid {light_blue};
+      border-radius: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      height: clamp(425px, 55vh, 650px);
+    }}
+    
+    @media (max-width: 915px) {{
+  #info-panel {{
+      height: clamp(425px, 65vh, 730px)!important;
+  }}
+    }}
+
+    @media (max-width: 767px) {{
+  #info-panel {{
+      width: clamp(400px, 100%, 750px) !important;
+      min-width: 400px !important;
+      max-width: 750px !important;
+  }}
+}}
+    
+    .body {{
+      line-height: unset !important;
+    }}
+    
+    @media (min-width: 768px) {{
+      .responsive-container {{
+        flex-direction: row;
+        align-items: stretch;
+      }}
+    }}
+  ")
+)),
+      
+      # Focus styles for keyboard navigation
+      tags$style(HTML("
+        .highcharts-point {
+          outline: none !important;
+        }
+        .highcharts-point:focus {
+          outline: 3px solid #005182 !important;
+          outline-offset: 2px !important;
+        }
+        .highcharts-point[tabindex]:focus {
+          outline: 3px solid #005182 !important;
+          outline-offset: 2px !important;
+          stroke: #005182 !important;
+          stroke-width: 3 !important;
+        }
+        .switch-container:focus-within {
+          outline: 2px solid #005182;
+          outline-offset: 2px;
+        }
+        .switch input:focus + .slider {
+          box-shadow: 0 0 0 3px rgba(0,81,130,0.4);
+        }
+        *:focus-visible {
+          outline: 3px solid #005182 !important;
+          outline-offset: 2px !important;
+          box-shadow: 0 0 0 4px rgba(0, 81, 130, 0.2) !important;
+        }
+        .highcharts-exporting-group button:focus-visible {
+          outline: 3px solid #005182 !important;
+          outline-offset: 2px !important;
+          border-radius: 4px !important;
+        }
+        .highcharts-legend-item:focus-visible {
+          outline: 3px solid #005182 !important;
+          outline-offset: 2px !important;
+          border-radius: 4px !important;
+        }
+      ")),
+      
+      # Keyboard instructions for screen readers
+      tags$div(
+        class = "sr-only",
+        style = "position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;",
+        "Use arrow keys to navigate between states on the map. Press Enter to open the organization chart for the selected state. Use Tab to navigate to the pattern toggle switch."
+      ),
+      
+      
+      tags$div(
+        class = "switch-container",
+        style = "position: absolute; top: 10px; left: 10px; z-index: 1000;
+                display: flex; flex-direction: column; gap: 2px; align-items: flex-start;",
+        # Label element
+        tags$span(
+          class = "switch-label",
+          "Toggle Pattern Fill",
+          style = sprintf("color: %s; font-family: 'Jost'; font-size: 0.8em; margin-left: 3px;", main_blue)
+        ),
         
-        if(point) {
+        tags$span(
+          id = "pattern-toggle-description",
+          class = "sr-only",
+          "When checked, the map will display pattern fills instead of solid colors for better visual differentiation."
+        ),
         
-          if (point.jurisdictionName !== "Louisiana") {
-           // Update tooltip with current point and store as last active
-           lastActivePoint = point;
-           updateTooltip(point);
-           
-           } else {
-           // For Louisiana, show default message
-           lastActivePoint = null;
-           tooltip.innerHTML = defaultMessage;
-           }
-} else if(lastActivePoint) {
-          // Only update if mouse leaves the entire chart
-          const bounds = container.getBoundingClientRect();
-          if(e.clientX < bounds.left || e.clientX > bounds.right || 
-             e.clientY < bounds.top || e.clientY > bounds.bottom) {
-            lastActivePoint = null;
-            tooltip.innerHTML = defaultMessage;
+        # Switch element
+        tags$label(
+          class = "switch",
+          tags$input(
+            type = "checkbox",
+            id = "pattern-toggle",
+            role = "switch",
+            `aria-label` = "Toggle pattern fill on map",
+            `aria-describedby` = "pattern-toggle-description",
+            style = "visibility: hidden; position: absolute; width: 0; height: 0;"
+          ),
+          tags$span(class = "slider round")
+        ),
+        tags$script(HTML(sprintf('
+          document.getElementById("pattern-toggle").addEventListener("change", function() {
+            Highcharts.charts.forEach(chart => {
+              if (chart.colorAxis && chart.colorAxis[0]) {
+                chart.colorAxis[0].update({
+                  dataClasses: this.checked ? %s : %s
+                });
+              }
+            });
+          });
+        ', 
+          jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
+          jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
+        )))
+      ),
+      
+      div(class = "responsive-container",
+          `aria-label` = "Medicaid Oversight Map and State Information",
+          
+          # Map container
+          div(class = "map-wrapper",
+              id = "map-container",
+              style = "position: relative; width: 100%;",
+              medicaidOversightMap
+          ),
+          
+          # Info panel - accessible tooltip replacement
+          div(
+            id = "info-panel",
+            role = "complementary",
+            `aria-label` = "tooltip panel",
+            div(
+              id = "tooltip-content",
+              style = "font-size: 1em; color: #242c3d; font-family: 'Jost';",
+               "Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart in a new tab."
+            )
+          )
+      ),
+      
+      # Live region for screen reader announcements
+      div(
+        id = "sr-announce",
+        role = "status",
+        `aria-live` = "polite",
+        `aria-atomic` = "true",
+        class = "sr-only",
+        style = "position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;"
+      ),
+    
+    # Pattern toggle script
+    tags$script(HTML(sprintf('
+      document.getElementById("pattern-toggle").addEventListener("change", function() {
+        Highcharts.charts.forEach(chart => {
+          chart.colorAxis[0].update({
+            dataClasses: this.checked ? %s : %s
+          });
+        });
+      });
+    ', 
+      jsonlite::toJSON(color_axis_pattern$dataClasses, auto_unbox = TRUE),
+      jsonlite::toJSON(color_axis_solid$dataClasses, auto_unbox = TRUE)
+    ))),
+    
+    # Main JavaScript for tooltip panel and keyboard navigation
+    tags$script(HTML(sprintf('
+      document.addEventListener("DOMContentLoaded", function() {
+        const tooltipContent = document.getElementById("tooltip-content");
+        const defaultMessage = `<div style="font-size: 1em; color: %s; font-family: Jost;">
+                                 Hover over a state or territory to read more information about it. Click on a state or territory to open a link to its org chart in a new tab.</div>`;
+        
+        function updateTooltip(point) {
+          const announce = document.getElementById("sr-announce");
+          
+          if (point && point.jurisdictionName && point.jurisdictionName !== "Louisiana") {
+            tooltipContent.innerHTML = `
+              <div style="font-family: Jost;">
+                <span style="font-size: 1.2em; color: %s; font-weight: bold;">${point.jurisdictionName}</span><br>
+                The <b style="color: %s;">${point.agency}</b>
+                ${point.description}<br>
+                <div style="padding: 10px 0; font-size: .9em; text-align: left; line-height: 1.4;">
+                  <strong>Medicaid Oversight:</strong> ${point.labels} <br>
+                  <strong>Structure:</strong> ${point.structure}<br>
+                  <strong>Governance:</strong> ${point.governance2022}<br>
+                  <strong>S/THO:</strong> ${point.SHO}<br>
+                  <strong>Population Size:</strong> ${point.size}<br>
+                  <strong>Population Density:</strong> ${point.density}<br>
+                  <strong>HHS Region:</strong> ${point.HHSRegion}<br>
+                </div>
+                <div style="font-size: .8em; color: #666; margin-top: 10px; font-style: italic;">
+                   Click to open organizational chart in a new tab.
+                </div>
+              </div>`;
+            
+            if (announce) {
+              announce.textContent = point.jurisdictionName + ": " + point.medicaidOversight;
+            }
+          } else {
+            tooltipContent.innerHTML = defaultMessage;
+            if (announce) {
+              announce.textContent = "No state selected";
+            }
           }
         }
-      };
-
-      // Clear last point when mouse leaves chart
-      container.addEventListener("mouseleave", function() {
-        lastActivePoint = null;
-        tooltip.innerHTML = defaultMessage;
+        
+        // Track hover and keyboard selection
+        Highcharts.charts.forEach(function(chart) {
+          const container = chart.container;
+          
+          // Mouse hover
+          container.onmousemove = function(e) {
+            const point = chart.hoverPoint;
+            if (point && point.jurisdictionName) {
+              updateTooltip(point);
+            } else {
+              updateTooltip(null);
+            }
+          };
+          
+          container.addEventListener("mouseleave", function() {
+            updateTooltip(null);
+          });
+          
+          // Keyboard selection
+          chart.series.forEach(function(series) {
+            if (series.type === "map") {
+              series.points.forEach(function(point) {
+                if (!point.events) point.events = {};
+                point.events.select = function() {
+                  if (this.jurisdictionName && this.jurisdictionName !== "Louisiana") {
+                    updateTooltip(this);
+                  } else {
+                    updateTooltip(null);
+                  }
+                };
+                point.events.unselect = function() {
+                  updateTooltip(null);
+                };
+              });
+            }
+          });
+        });
+        
+        // Handle Enter key on map points for organization chart
+        document.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") {
+            var target = e.target;
+            if (target && target.closest && target.closest(".highcharts-point")) {
+              var pointElement = target.closest(".highcharts-point");
+              if (pointElement) {
+                Highcharts.charts.forEach(function(chart) {
+                  chart.series.forEach(function(series) {
+                    series.points.forEach(function(point) {
+                      if (point.graphic && point.graphic.element === pointElement) {
+                        if (point.orgChartLink && point.orgChartLink !== "") {
+                          window.open(point.orgChartLink, "_blank");
+                          e.preventDefault();
+                        }
+                      }
+                    });
+                  });
+                });
+              }
+            }
+          }
+        });
+        
+        // Set tabindex for all map points
+        setTimeout(function() {
+          Highcharts.charts.forEach(function(chart) {
+            if (chart && chart.series) {
+              chart.series.forEach(function(series) {
+                if (series.type === "map") {
+                  series.points.forEach(function(point) {
+                    if (point.graphic && point.graphic.element) {
+                      point.graphic.element.setAttribute("tabindex", "0");
+                      point.graphic.element.setAttribute("role", "button");
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }, 1000);
       });
-    });
-
-    function updateTooltip(point) {
-      tooltip.innerHTML = `
-        <div style="padding: 8px;">
-          <span style="font-size: 1.2em; text-align: center !important; color: ${"%s"}">
-            ${point.jurisdictionName}
-          </span><br>
-          The <b style="color: ${"%s"}; text-align: center !important;"> ${point.agency}</b>
-          <style="font-size: .9em; line-height: .7em; text-align: left !important;">${point.description}<br>
-          <div style="padding: 10px 0; font-size: .9em; text-align: left;">
-            <strong>Medicaid Oversight:</strong> ${point.labels} <br>
-            <strong>Structure:</strong> ${point.structure}<br>
-            <strong>Governance:</strong> ${point.governance2022}<br>
-            <strong>S/THO:</strong> ${point.SHO}<br>
-            <strong>Population Size:</strong> ${point.size}<br>
-            <strong>Population Density:</strong> ${point.density}<br>
-            <strong>HHS Region:</strong> ${point.HHSRegion}<br>
-          </div>
-        </div>`;
-    }
-  });
-', main_blue, main_blue, main_orange)))  )
+    ', main_blue, main_blue, main_orange)))
+  )
 )
-
 ```
