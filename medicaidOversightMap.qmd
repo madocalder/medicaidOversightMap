@@ -115,10 +115,17 @@ medicaid <- read_excel("updatedMemberData.xlsx") |>
   mutate( 
     medicaidOversight = dplyr::case_when(
       medicaid == "NA - Freestanding" ~ "Freestanding Agency: Separate Oversight",
+      
       tolower(medicaid) == "no sho oversight" ~ "Umbrella Agency: Separate Oversight",
+      
+
       medicaid == "NA (does not have Medicaid)" ~ "NA",
+     
+      (tolower(medicaid) == "sho oversight" & jurisdictionName == "New York") ~ "S/THO Oversight",
+      
       medicaid == "Data Not Available" ~ "Data Not Available",
-      TRUE ~ "Umbrella Agency: S/THO Oversight"
+      
+      TRUE ~ "S/THO Oversight"
     )
   )
 
@@ -154,12 +161,12 @@ combinedData <- combinedData |>
   dplyr::mutate(colors = dplyr::case_when(
     medicaidOversight == "Freestanding Agency: Separate Oversight" ~ icon_accent,
     medicaidOversight == "Umbrella Agency: Separate Oversight" ~ main_orange,
-    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ main_blue,
+    medicaidOversight == "S/THO Oversight" ~ main_blue,
     medicaidOversight == "NA | Does not have Medicaid" | medicaidOversight == "Data Not Available" ~ NA_color,
     TRUE ~ NA_color
   ),
   labels = dplyr::case_when(
-    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ "S/THO Oversight",
+    medicaidOversight == "S/THO Oversight" ~ "S/THO Oversight",
     medicaidOversight == "Umbrella Agency: Separate Oversight" |
       medicaidOversight == "Freestanding Agency: Separate Oversight" ~ "Separate Oversight", 
     TRUE ~ "◽️"
@@ -174,8 +181,11 @@ combinedData <- combinedData |>
   description = dplyr::case_when(
     medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName != "Alabama" ~ paste(' <b>is freestanding</b>, so does not have oversight over Medicaid.'),
     medicaidOversight == "Freestanding Agency: Separate Oversight" & jurisdictionName == "Alabama" ~ paste(' <b>is freestanding</b> and does not have oversight over Medicaid, but does have oversight of the Children’s Health Insurance (CHIP) Program.'),
+    
+     medicaidOversight == "S/THO Oversight" & jurisdictionName == "New York" ~ paste(' <b>is a  superagency</b> and the SHO has oversight of Medicaid.'),
+    
     medicaidOversight == "Umbrella Agency: Separate Oversight" ~ paste(' <b>does not have oversight</b> over Medicaid.'),
-    medicaidOversight == "Umbrella Agency: S/THO Oversight" ~ paste(' <b>has oversight</b> over Medicaid.'),
+    medicaidOversight == "S/THO Oversight" ~ paste(' <b>has oversight</b> over Medicaid.'),
     medicaid == "SHO Oversight (SHO designee does not have oversight)" ~ paste(' <b>has oversight</b> over Medicaid, but the SHO designee does not.'),
     medicaidOversight == "NA | Does not have Medicaid" ~ paste(' <b>does not have </b> Medicaid.'),
     medicaidOversight == "Data Not Available" ~ NA_color,
@@ -258,12 +268,13 @@ source("patterns.R")
 color_mappings <- list(
   list(
     group = "Umbrella Agency",
-    subgroup = "Umbrella Agency: S/THO Oversight",
-    display_name = "Umbrella Agency: S/THO Oversight",
+    subgroup = "S/THO Oversight",
+    display_name = "S/THO Oversight",
     solid_color = main_blue,
     pattern_color = chainlink_pattern,
     order = 1
   ),
+  
   list(
     group = "Umbrella Agency",
     subgroup = "Umbrella Agency: Separate Oversight",
