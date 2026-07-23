@@ -204,10 +204,13 @@ data_classes <- combinedData |>
          name = from) |>
   list_parse()
 
-m <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata.json")
-m2 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata2.json")
-m3 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata3.json")
-m4 <- jsonlite::read_json("~/Documents/custom.map/inst/mapdata4.json")
+
+
+
+m <- jsonlite::read_json("maps/mapdata.json")
+m2 <- jsonlite::read_json("maps/mapdata2.json")
+m3 <- jsonlite::read_json("maps/mapdata3.json")
+m4 <- jsonlite::read_json("maps/mapdata4.json")
 
 us_map <- m[[1]]$mapData
 us_map <- purrr::map2(us_map, m2[[1]]$mapData, \(m1, m2) {
@@ -442,7 +445,7 @@ medicaidOversightMap <- highchart(type = "map") |>
     )
   ) |>
   hc_caption(
-    text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of April 2026. <b>"),
+    text = paste("<b>Source</b>: The Association for State and Territorial Health Officials, data current as of July 2026. <b>"),
     useHTML = TRUE,
     verticalAlign = "bottom",
     widthAdjust = 0
